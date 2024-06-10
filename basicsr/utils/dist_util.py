@@ -14,7 +14,7 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 
 
-def init_dist(launcher, backend='nccl', **kwargs):
+def init_dist(launcher, backend='gloo', **kwargs):
     if mp.get_start_method(allow_none=True) is None:
         mp.set_start_method('spawn')
     if launcher == 'pytorch':

@@ -288,7 +288,7 @@ class LayerNormFunction(torch.autograd.Function):
         return gx, (grad_output * y).sum(dim=3).sum(dim=2).sum(dim=0), grad_output.sum(dim=3).sum(dim=2).sum(
             dim=0), None
 
-class LayerNorm2d(nn.Module):
+class LayerNorm2d(nn.Module): # Layer Normalization 함수
 
     def __init__(self, channels, eps=1e-6):
         super(LayerNorm2d, self).__init__()
@@ -298,6 +298,39 @@ class LayerNorm2d(nn.Module):
 
     def forward(self, x):
         return LayerNormFunction.apply(x, self.weight, self.bias, self.eps)
+
+class GroupNorm2d(nn.Module): # Group Normalization 함수
+    def __init__(self, channels, eps=1e-6):
+        super(GroupNorm2d, self).__init__()
+        self.gn = nn.GroupNorm(2, channels, eps=1e-08)
+        # self.register_parameter('weight', nn.Parameter(torch.ones(channels)))
+        # self.register_parameter('bias', nn.Parameter(torch.zeros(channels)))
+        # self.eps = eps
+
+    def forward(self,x):
+        return self.gn(x) #[B, N, T] -> [B, N, T]
+
+class InstanceNorm2d(nn.Module): # Instance Normalization 함수
+    def __init__(self, channels, eps=1e-6):
+        super(InstanceNorm2d, self).__init__()
+        self.istanceNorm = nn.GroupNorm(channels, channels, eps=1e-08)
+        # self.register_parameter('weight', nn.Parameter(torch.ones(channels)))
+        # self.register_parameter('bias', nn.Parameter(torch.zeros(channels)))
+        # self.eps = eps
+
+    def forward(self,x):
+        return self.istanceNorm(x) #[B, N, T] -> [B, N, T]
+
+class BatchNorm2d(nn.Module): # Batch Normalization 함수
+    def __init__(self, channels, eps=1e-6):
+        super(BatchNorm2d, self).__init__()
+        self.bn = nn.BatchNorm2d(channels)
+        # self.register_parameter('weight', nn.Parameter(torch.ones(channels)))
+        # self.register_parameter('bias', nn.Parameter(torch.zeros(channels)))
+        # self.eps = eps
+
+    def forward(self,x):
+        return self.bn(x) #[B, N, T] -> [B, N, T]
 
 # handle multiple input
 class MySequential(nn.Sequential):

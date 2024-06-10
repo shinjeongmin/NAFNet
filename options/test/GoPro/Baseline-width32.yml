@@ -58,5 +58,5 @@ val:
 
 # dist training settings
 dist_params:
-  backend: nccl
+  backend: gloo
   port: 29500

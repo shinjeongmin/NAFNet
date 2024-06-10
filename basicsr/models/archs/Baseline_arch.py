@@ -16,7 +16,9 @@ Simple Baselines for Image Restoration
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from basicsr.models.archs.arch_util import LayerNorm2d
+from torch.nn.functional import instance_norm
+
+from basicsr.models.archs.arch_util import LayerNorm2d, GroupNorm2d, InstanceNorm2d, BatchNorm2d
 from basicsr.models.archs.local_arch import Local_Base
 
 class BaselineBlock(nn.Module):
@@ -26,6 +28,8 @@ class BaselineBlock(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel,
                                bias=True)
+        self.conv2_dw = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel, bias=True)
+        self.conv2_pw = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         self.conv3 = nn.Conv2d(in_channels=dw_channel, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         
         # Channel Attention
@@ -46,8 +50,17 @@ class BaselineBlock(nn.Module):
         self.conv4 = nn.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         self.conv5 = nn.Conv2d(in_channels=ffn_channel, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
 
+        # Layer normalization
         self.norm1 = LayerNorm2d(c)
         self.norm2 = LayerNorm2d(c)
+
+        # Instance normalization
+        # self.norm1 = InstanceNorm2d(c)
+        # self.norm2 = InstanceNorm2d(c)
+
+        # Batch normalization
+        # self.norm1 = BatchNorm2d(c)
+        # self.norm2 = BatchNorm2d(c)
 
         self.dropout1 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
         self.dropout2 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
@@ -61,12 +74,15 @@ class BaselineBlock(nn.Module):
         x = self.norm1(x)
 
         x = self.conv1(x)
-        x = self.conv2(x)
-        x = self.gelu(x)
-        x = x * self.se(x)
-        x = self.conv3(x)
+        # x = self.conv2(x)
 
         x = self.dropout1(x)
+        x = self.conv2_dw(x) # depthwise
+        x = self.conv2_pw(x) # pointwise
+        x = self.gelu(x)
+        x = self.conv2(x)  # pointwise
+        x = x * self.se(x)
+        x = self.conv3(x)
 
         y = inp + x * self.beta
 

@@ -148,6 +148,8 @@ def paired_paths_from_lmdb(folders, keys):
         input_lmdb_keys = [line.split('.')[0] for line in fin]
     with open(osp.join(gt_folder, 'meta_info.txt')) as fin:
         gt_lmdb_keys = [line.split('.')[0] for line in fin]
+    # print(input_lmdb_keys)
+    # print(gt_lmdb_keys)
     if set(input_lmdb_keys) != set(gt_lmdb_keys):
         raise ValueError(
             f'Keys in {input_key}_folder and {gt_key}_folder are different.')
