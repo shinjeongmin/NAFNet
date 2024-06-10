@@ -19,10 +19,12 @@ import torch.nn.functional as F
 from basicsr.models.archs.arch_util import LayerNorm2d, GroupNorm2d, InstanceNorm2d, BatchNorm2d
 from basicsr.models.archs.local_arch import Local_Base
 
+# 수정 1 ----------------------------------------------------
 class SimpleGate(nn.Module): # Simple Gate 함수 내 Residual Connection 적용
     def forward(self, x):
         x1, x2 = x.chunk(2, dim=1)
         return x1 * x2 + x1
+#----------------------------------------------------
 
 class NAFBlock(nn.Module):
     def __init__(self, c, DW_Expand=2, FFN_Expand=2, drop_out_rate=0.):
@@ -31,11 +33,13 @@ class NAFBlock(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=c, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         self.conv2 = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel,
                                bias=True)
+# 수정 2 ----------------------------------------------------
         # depth wise convolution 추가
         self.conv2_dw = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=3, padding=1, stride=1, groups=dw_channel, bias=True)
         # point wise convolution 추가
         self.conv2_pw = nn.Conv2d(in_channels=dw_channel, out_channels=dw_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         self.conv3 = nn.Conv2d(in_channels=dw_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
+# ----------------------------------------------------
         
         # Simplified Channel Attention
         self.sca = nn.Sequential(
@@ -51,11 +55,13 @@ class NAFBlock(nn.Module):
         self.conv4 = nn.Conv2d(in_channels=c, out_channels=ffn_channel, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
         self.conv5 = nn.Conv2d(in_channels=ffn_channel // 2, out_channels=c, kernel_size=1, padding=0, stride=1, groups=1, bias=True)
 
+# 수정 3 ----------------------------------------------------
         self.norm1 = LayerNorm2d(c)
         self.norm2 = LayerNorm2d(c)
         self.norm3 = InstanceNorm2d(c)
         self.norm4 = BatchNorm2d(c)
         self.norm5 = GroupNorm2d(c)
+# ----------------------------------------------------
 
         self.dropout1 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
         self.dropout2 = nn.Dropout(drop_out_rate) if drop_out_rate > 0. else nn.Identity()
@@ -69,14 +75,15 @@ class NAFBlock(nn.Module):
         # Layer Normalization
         x = self.norm1(x)
 
+# 수정 4 ----------------------------------------------------
         x = self.conv1(x)
-        # 기존 convolution2 대신 depthwise convolution2, point wise convolution2를 사용
+        # 기존 convolution2 대신 분리된 depthwise convolution2, point wise convolution2를 사용
         # x = self.conv2(x)
-        
+
         # depth wise convolution 적용
-        self.conv2_dw(x)
+        x= self.conv2_dw(x)
         # point wise convolution 적용
-        self.conv2_pw(x)
+        x= self.conv2_pw(x)
 
         # Residual Connection기법이 적용된 Simple Gate 함수 호출
         x = self.sg(x)
@@ -87,17 +94,20 @@ class NAFBlock(nn.Module):
 
         y = inp + x * self.beta
 
-        # Layer Normalization
-        x = self.conv4(self.norm2(y))
-        x = self.sg(x)
-        x = self.conv5(x)
-
         # Instance Normalization
-        x = self.norm3(x)
+        x = self.norm3(y)
         # Batch Normalization
         x = self.norm4(x)
         # Group Normalization
         x = self.norm5(x)
+
+        # Layer Normalization
+        x = self.conv4(self.norm2(x))
+
+# ----------------------------------------------------
+
+        x = self.sg(x)
+        x = self.conv5(x)
 
         x = self.dropout2(x)
 
